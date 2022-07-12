@@ -22,8 +22,9 @@ resource "azuread_application_password" "client_secret" {
 }
 
 resource "databricks_service_principal" "sp" {
-  application_id = azuread_application.service_principal.application_id
-  display_name   = var.display_name
+  application_id       = azuread_application.service_principal.application_id
+  display_name         = var.display_name
+  allow_cluster_create = true
 }
 
 data "databricks_group" "sp_group" {

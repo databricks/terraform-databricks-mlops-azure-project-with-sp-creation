@@ -10,7 +10,7 @@ The service principals are granted `CAN_MANAGE` permissions on the created works
 1. This module is in preview so it is still experimental and subject to change. Feedback is welcome!
 2. The [Databricks providers](https://registry.terraform.io/providers/databricks/databricks/latest/docs) that are passed into the module must be configured with workspace admin permissions.
 3. The [Azure Active Directory (AzureAD) provider](https://registry.terraform.io/providers/hashicorp/azuread/latest/docs) that is passed into the module must be configured with [Application.ReadWrite.All](https://registry.terraform.io/providers/hashicorp/azuread/latest/docs/resources/application_password#api-permissions) permissions to allow AAD application creation to link to an Azure Databricks service principal. This provider can be authenticated via an AAD [service principal](https://docs.microsoft.com/en-us/azure/databricks/administration-guide/users-groups/service-principals#create-a-service-principal) with the Application.ReadWrite.All permission.
-4. The module assumes that one of the two Azure Infrastructure Modules has already been applied, namely that service principal groups with token usage permissions have been created with the name `"mlops-service-principals"`.
+4. The module assumes that one of the two Azure Infrastructure Modules (with [Creation](https://registry.terraform.io/modules/databricks/mlops-azure-infrastructure-with-sp-creation/databricks/latest) or [Linking](https://registry.terraform.io/modules/databricks/mlops-azure-infrastructure-with-sp-linking/databricks/latest)) has already been applied, namely that service principal groups with token usage permissions have been created with the default name `"mlops-service-principals"` or by specifying the `service_principal_group_name` field.
 5. The service principal AAD tokens are short-lived (<60 minutes in most cases). If a long-lived token is desired, the AAD token can be used to authenticate into a Databricks provider and provision a personal access token (PAT) for the service principal.
 
 ## Usage
@@ -76,6 +76,53 @@ resource "databricks_git_credential" "prod_git" {
 }
 ```
 
+### Usage example with [MLOps Azure Infrastructure Module with Service Principal Creation](https://registry.terraform.io/modules/databricks/mlops-azure-infrastructure-with-sp-creation/databricks/latest)
+```hcl
+provider "databricks" {
+  alias = "dev" # Authenticate using preferred method as described in Databricks provider
+}
+
+provider "databricks" {
+  alias = "staging"     # Authenticate using preferred method as described in Databricks provider
+}
+
+provider "databricks" {
+  alias = "prod"     # Authenticate using preferred method as described in Databricks provider
+}
+
+provider "azuread" {} # Authenticate using preferred method as described in AzureAD provider
+
+module "mlops_azure_infrastructure_with_sp_creation" {
+  source = "databricks/mlops-azure-infrastructure-with-sp-creation/databricks"
+  providers = {
+    databricks.dev = databricks.dev
+    databricks.staging = databricks.staging
+    databricks.prod = databricks.prod
+    azuread = azuread
+  }
+  staging_workspace_id          = "123456789"
+  prod_workspace_id             = "987654321"
+  azure_tenant_id               = "a1b2c3d4-e5f6-g7h8-i9j0-k9l8m7n6o5p4"
+  additional_token_usage_groups = ["users"]     # This field is optional.
+}
+
+module "mlops_azure_project_with_sp_creation" {
+  source = "databricks/mlops-azure-project-with-sp-creation/databricks"
+  providers = {
+    databricks.staging = databricks.staging
+    databricks.prod = databricks.prod
+    azuread = azuread
+  }
+  service_principal_name = "example-name"
+  project_directory_path = "/dir-name"
+  azure_tenant_id        = "a1b2c3d4-e5f6-g7h8-i9j0-k9l8m7n6o5p4"
+  service_principal_group_name = module.mlops_azure_infrastructure_with_sp_creation.service_principal_group_name 
+  # The above field is optional, especially since in this case service_principal_group_name will be mlops-service-principals either way, 
+  # but this also serves to create an implicit dependency. Can also be replaced with the following line to create an explicit dependency:
+  # depends_on             = [module.mlops_azure_infrastructure_with_sp_creation]
+}
+```
+
 ## Requirements
 | Name | Version |
 |------|---------|
@@ -90,6 +137,7 @@ resource "databricks_git_credential" "prod_git" {
 |service_principal_name|The display name for the service principals.|string|N/A|yes|
 |project_directory_path|Path/Name of Azure Databricks workspace directory to be created for the project. NOTE: The parent directories in the path must already be created.|string|N/A|yes|
 |azure_tenant_id|The [Azure tenant ID](https://docs.microsoft.com/en-us/azure/active-directory/fundamentals/active-directory-how-to-find-tenant) of the AAD subscription. Must match the one used for the AzureAD Provider.|string|N/A|yes|
+|service_principal_group_name|The name of the service principal group in the staging and prod workspace. The created service principals will be added to this group.|string|`"mlops-service-principals"`|no|
 
 ## Outputs
 | Name | Description | Type | Sensitive |
