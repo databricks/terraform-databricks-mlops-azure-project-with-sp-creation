@@ -7,12 +7,17 @@ curl) but that means Python3 is a necessary dependency to use this module.
 import urllib.request
 import json
 import sys
+import os
+
+scope = os.getenv('DATABRICKS_AAD_TOKEN_SCOPE')  # INTERNAL USE ONLY
+if scope is None:
+    scope = '2ff814a6-3304-4ab8-85cb-cd0e6f879c1d'  # programmatic ID for Azure Databricks
 
 input = json.loads(sys.stdin.read())
 url = f'https://login.microsoftonline.com/{input.get("tenant_id")}/oauth2/v2.0/token'
 data = (f'client_id={input.get("client_id")}&'
         'grant_type=client_credentials&'
-        'scope=2ff814a6-3304-4ab8-85cb-cd0e6f879c1d%2F.default&'  # programmatic ID for Azure Databricks
+        f'scope={scope}%2F.default&'
         f'client_secret={input.get("client_secret")}').encode('utf-8')
 
 request = urllib.request.Request(url, data=data)
