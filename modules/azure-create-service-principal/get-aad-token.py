@@ -8,6 +8,22 @@ import urllib.request
 import json
 import sys
 import os
+import math
+import random
+import time
+
+INTERVAL_MAX = 30
+INTERVAL_BASE = 5
+MAX_EXPONENT = 10
+
+
+def backoff_with_jitter(attempt):
+    """
+    Creates a growing but randomized wait time based on the number of attempts already made.
+    """
+    exponent = min(attempt, MAX_EXPONENT)
+    sleep_time = min(INTERVAL_MAX, INTERVAL_BASE * 2 ** exponent)
+    return random.randrange(math.floor(sleep_time * 0.5), sleep_time)
 
 scope = os.getenv('DATABRICKS_AAD_TOKEN_SCOPE')  # INTERNAL USE ONLY
 if scope is None:
@@ -20,8 +36,17 @@ data = (f'client_id={input.get("client_id")}&'
         f'scope={scope}%2F.default&'
         f'client_secret={input.get("client_secret")}').encode('utf-8')
 
-request = urllib.request.Request(url, data=data)
-response = json.load(urllib.request.urlopen(request))
+while True:
+    attempt = 1
+    try:
+        request = urllib.request.Request(url, data=data)
+        response = json.load(urllib.request.urlopen(request))
+    except urllib.error.HTTPError as e:
+        print(f'Token fetch attempt {attempt} FAILED with error {e}', file=sys.stderr)
+        time.sleep(backoff_with_jitter(attempt))
+    else:
+        break
+
 token = {
     "token": response.get("access_token")
 }
