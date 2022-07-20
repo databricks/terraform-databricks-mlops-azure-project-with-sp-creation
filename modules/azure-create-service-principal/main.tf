@@ -13,8 +13,11 @@ variable "azure_tenant_id" {
   description = "The Azure tenant ID of the AAD subscription. Must match the one used for the AzureAD Provider."
 }
 
+data "azuread_client_config" "current" {}
+
 resource "azuread_application" "service_principal" {
   display_name = var.display_name
+  owners       = [data.azuread_client_config.current.object_id]
 }
 
 resource "azuread_application_password" "client_secret" {

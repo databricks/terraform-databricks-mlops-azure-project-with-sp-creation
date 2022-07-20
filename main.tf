@@ -14,7 +14,7 @@ module "create_staging_sp" {
     databricks = databricks.staging
     azuread    = azuread
   }
-  display_name    = "READ-only Model Registry Service Principal"
+  display_name    = var.service_principal_name
   group_name      = data.databricks_group.staging_sp_group.display_name
   azure_tenant_id = var.azure_tenant_id
 }
@@ -25,7 +25,7 @@ module "create_prod_sp" {
     databricks = databricks.prod
     azuread    = azuread
   }
-  display_name    = "READ-only Model Registry Service Principal"
+  display_name    = var.service_principal_name
   group_name      = data.databricks_group.prod_sp_group.display_name
   azure_tenant_id = var.azure_tenant_id
 }

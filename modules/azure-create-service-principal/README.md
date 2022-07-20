@@ -57,6 +57,7 @@ module "azure_create_sp" {
 ## Resources
 | Name | Type |
 |------|------|
+|azuread_client_config.current|data source|
 |azuread_application.service_principal|resource|
 |azuread_application_password.client_secret|resource|
 |databricks_service_principal.sp|resource|
